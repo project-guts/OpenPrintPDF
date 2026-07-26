@@ -1,0 +1,1 @@
+{"main-capability":{"identifier":"main-capability","description":"Minimum permissions for the Open Print PDF main window","local":true,"windows":["main"],"permissions":["core:event:default","core:webview:default","dialog:allow-open","dialog:allow-save"]}}

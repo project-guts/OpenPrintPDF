@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="96" fill="#111b22"/>
+  <path d="M256 78 434 256 256 434 78 256Z" fill="none" stroke="#d29d43" stroke-width="18"/>
+  <path d="M256 126 386 256 256 386 126 256Z" fill="#17242d" stroke="#6f7f84" stroke-width="5"/>
+  <text x="256" y="292" text-anchor="middle" fill="#f7f5ed" font-family="Georgia,serif" font-size="122" font-weight="700" letter-spacing="-12">OP</text>
+</svg>

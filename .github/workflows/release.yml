@@ -1,0 +1,123 @@
+name: Windows release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Signed Windows installer
+    runs-on: windows-latest
+    timeout-minutes: 45
+    env:
+      WINDOWS_CERTIFICATE_BASE64: ${{ secrets.WINDOWS_CERTIFICATE_BASE64 }}
+      WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable 2026-07-16
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2.9.1
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: apps/desktop/package-lock.json
+      - name: Require signing credentials
+        shell: pwsh
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:WINDOWS_CERTIFICATE_BASE64) -or
+              [string]::IsNullOrWhiteSpace($env:WINDOWS_CERTIFICATE_PASSWORD)) {
+            throw "Public releases require WINDOWS_CERTIFICATE_BASE64 and WINDOWS_CERTIFICATE_PASSWORD"
+          }
+      - name: Verify tag and application version
+        shell: pwsh
+        run: |
+          $config = Get-Content -Raw apps/desktop/src-tauri/tauri.conf.json | ConvertFrom-Json
+          $expectedTag = "v$($config.version)"
+          if ($env:GITHUB_REF_NAME -ne $expectedTag) {
+            throw "Tag $env:GITHUB_REF_NAME does not match tauri.conf.json version $($config.version)"
+          }
+      - name: Install frontend dependencies
+        working-directory: apps/desktop
+        run: npm ci
+      - name: Audit frontend dependencies
+        working-directory: apps/desktop
+        run: npm audit --audit-level=high
+      - name: Prepare bundled Ghostscript and source archive
+        id: ghostscript
+        shell: pwsh
+        timeout-minutes: 12
+        run: ./scripts/prepare-ghostscript-windows.ps1 -DownloadSource
+      - name: Expose staged Ghostscript to integration tests
+        shell: pwsh
+        run: Split-Path '${{ steps.ghostscript.outputs.ghostscript_exe }}' | Out-File -FilePath $env:GITHUB_PATH -Append
+      - name: Import signing certificate
+        id: certificate
+        shell: pwsh
+        run: |
+          $certificatePath = Join-Path $env:RUNNER_TEMP "open-print-pdf-signing.pfx"
+          [IO.File]::WriteAllBytes($certificatePath, [Convert]::FromBase64String($env:WINDOWS_CERTIFICATE_BASE64))
+          $password = ConvertTo-SecureString $env:WINDOWS_CERTIFICATE_PASSWORD -AsPlainText -Force
+          $certificate = Import-PfxCertificate -FilePath $certificatePath -CertStoreLocation Cert:\CurrentUser\My -Password $password
+          if (-not $certificate.Thumbprint) { throw "The signing certificate could not be imported" }
+          "thumbprint=$($certificate.Thumbprint)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+      - name: Create signed-build configuration
+        shell: pwsh
+        run: |
+          $config = @{
+            bundle = @{
+              windows = @{
+                certificateThumbprint = '${{ steps.certificate.outputs.thumbprint }}'
+                digestAlgorithm = 'sha256'
+                timestampUrl = 'http://timestamp.digicert.com'
+              }
+            }
+          }
+          $config | ConvertTo-Json -Depth 5 | Set-Content -Encoding utf8 apps/desktop/src-tauri/tauri.release.conf.json
+      - name: Check and test source
+        shell: pwsh
+        run: |
+          cargo fmt --all -- --check
+          cargo test --workspace
+          cargo clippy --workspace --all-targets -- -D warnings
+      - name: Build frontend
+        working-directory: apps/desktop
+        run: npm run build
+      - name: Build signed installers and create draft release
+        uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f # v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          projectPath: apps/desktop
+          tagName: ${{ github.ref_name }}
+          releaseName: Open Print PDF ${{ github.ref_name }}
+          releaseDraft: true
+          generateReleaseNotes: true
+          uploadUpdaterJson: false
+          args: --bundles nsis,msi --config src-tauri/tauri.release.conf.json
+      - name: Create checksums
+        shell: pwsh
+        run: |
+          $assets = @()
+          $assets += Get-ChildItem target/release/bundle/nsis -Filter *.exe
+          $assets += Get-ChildItem target/release/bundle/msi -Filter *.msi
+          $assets += Get-Item '${{ steps.ghostscript.outputs.source_archive }}'
+          $lines = foreach ($asset in $assets) {
+            $hash = (Get-FileHash -Algorithm SHA256 $asset.FullName).Hash.ToLowerInvariant()
+            "$hash  $($asset.Name)"
+          }
+          $lines | Set-Content -Encoding ascii SHA256SUMS.txt
+      - name: Attach source and license materials
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload $env:GITHUB_REF_NAME `
+            '${{ steps.ghostscript.outputs.source_archive }}' `
+            SHA256SUMS.txt LICENSE THIRD_PARTY_NOTICES.md `
+            --clobber

@@ -1,0 +1,117 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Rust and frontend tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable 2026-07-16
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2.9.1
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: apps/desktop/package-lock.json
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+      - name: Install frontend dependencies
+        working-directory: apps/desktop
+        run: npm ci
+      - name: Audit frontend dependencies
+        working-directory: apps/desktop
+        run: npm audit --audit-level=high
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+      - name: Test Rust workspace
+        run: cargo test --workspace
+      - name: Lint Rust workspace
+        run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: Build frontend
+        working-directory: apps/desktop
+        run: npm run build
+
+  windows-installer:
+    name: Unsigned Windows installer smoke test
+    runs-on: windows-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable 2026-07-16
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2.9.1
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: apps/desktop/package-lock.json
+      - name: Install frontend dependencies
+        working-directory: apps/desktop
+        run: npm ci
+      - name: Prepare bundled Ghostscript
+        id: ghostscript
+        shell: pwsh
+        timeout-minutes: 8
+        run: ./scripts/prepare-ghostscript-windows.ps1
+      - name: Expose staged Ghostscript to integration tests
+        shell: pwsh
+        run: Split-Path '${{ steps.ghostscript.outputs.ghostscript_exe }}' | Out-File -FilePath $env:GITHUB_PATH -Append
+      - name: Test Rust workspace
+        run: cargo test --workspace
+      - name: Build unsigned NSIS smoke-test installer
+        working-directory: apps/desktop
+        run: npm run tauri build -- --debug --bundles nsis
+      - name: Verify Ghostscript is included in NSIS
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem target/debug/bundle/nsis -Filter *-setup.exe | Select-Object -First 1
+          if (-not $installer) { throw "NSIS installer was not generated" }
+          $extract = Join-Path $env:RUNNER_TEMP "open-print-pdf-nsis-payload"
+          New-Item -ItemType Directory -Force $extract | Out-Null
+          & "$env:ProgramFiles/7-Zip/7z.exe" x -y "-o$extract" $installer.FullName | Out-Null
+          if ($LASTEXITCODE -ne 0) { throw "Could not extract NSIS installer" }
+          $packagedGhostscript = Get-ChildItem $extract -Recurse -Filter gswin64c.exe |
+            Where-Object { $_.FullName -match '[\\/]ghostscript[\\/]bin[\\/]' } |
+            Select-Object -First 1
+          if (-not $packagedGhostscript) { throw "Packaged Ghostscript was not found in NSIS" }
+      - name: Build unsigned Store MSIX smoke test
+        id: msix
+        shell: pwsh
+        run: ./scripts/build-store-msix.ps1 -Configuration Debug
+      - name: Upload unsigned smoke-test installer
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: open-print-pdf-windows-unsigned-smoke-test
+          path: |
+            target/debug/bundle/nsis/*-setup.exe
+            ${{ steps.msix.outputs.msixupload }}
+          if-no-files-found: error
+          retention-days: 7
+
+  rust-security-audit:
+    name: Rust dependency security audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      checks: write
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: rustsec/audit-check@69366f33c96575abad1ee0dba8212993eecbe998 # v2.0.0
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}

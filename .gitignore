@@ -1,0 +1,13 @@
+/target/
+/output/
+/tmp/
+/apps/desktop/node_modules/
+/apps/desktop/dist/
+/apps/desktop/src-tauri/vendor/ghostscript/*
+!/apps/desktop/src-tauri/vendor/ghostscript/.gitkeep
+/.idea/
+/.vscode/
+/docs/ja/
+*.log
+*.tmp.pdf
+.DS_Store

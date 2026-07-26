@@ -1,0 +1,12 @@
+{
+  "identityName": "GutsProject.OpenPrintPDF",
+  "publisher": "CN=7AFB44EB-B7B6-41D3-9A85-5DAC835F0F38",
+  "publisherDisplayName": "GutsProject",
+  "displayName": "Open Print PDF",
+  "description": "印刷用PDFの検査・フォントアウトライン化・PDF/X-1a変換",
+  "packageVersion": "1.0.1.0",
+  "architecture": "x64",
+  "minimumWindowsVersion": "10.0.22000.0",
+  "maximumWindowsVersionTested": "10.0.26100.0",
+  "executable": "open-print-pdf-desktop.exe"
+}

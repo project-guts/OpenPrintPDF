@@ -1,0 +1,14 @@
+[package]
+name = "open-print-pdf-application"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+open-print-pdf-conversion-ghostscript = { path = "../open-print-pdf-conversion-ghostscript" }
+open-print-pdf-core = { path = "../open-print-pdf-core" }
+serde.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

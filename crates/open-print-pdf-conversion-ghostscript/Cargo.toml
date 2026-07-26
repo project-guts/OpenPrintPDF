@@ -1,0 +1,24 @@
+[package]
+name = "open-print-pdf-conversion-ghostscript"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+hex.workspace = true
+open-print-pdf-core = { path = "../open-print-pdf-core" }
+sha2.workspace = true
+tempfile.workspace = true
+wait-timeout.workspace = true
+
+[dev-dependencies]
+lopdf.workspace = true
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = [
+    "Win32_Foundation",
+    "Win32_Security",
+    "Win32_System_JobObjects",
+    "Win32_System_Threading",
+] }
