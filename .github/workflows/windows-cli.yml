@@ -100,9 +100,11 @@ jobs:
             -InputPdf $launcherInput `
             -DiagnosticsRoot $diagnosticsDirectory `
             -NoPause
-          if ($LASTEXITCODE -eq 0) {
+          $launcherExitCode = $LASTEXITCODE
+          if ($launcherExitCode -eq 0) {
             throw "Invalid smoke-test PDF unexpectedly converted"
           }
+          $global:LASTEXITCODE = 0
           $launcherOutput = Join-Path $launcherDirectory "launcher-input-pdfx1a.pdf"
           if (Test-Path -LiteralPath $launcherOutput) {
             throw "Failed conversion left a final PDF beside the input"
