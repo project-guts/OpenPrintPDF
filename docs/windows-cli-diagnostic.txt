@@ -1,0 +1,48 @@
+pdfx1a-convert Windows版
+========================
+
+目的
+----
+PDF/X-4などのPDFを、同梱Ghostscriptを使ってPDF/X-1aへ変換します。
+インストールは不要です。
+
+使い方
+------
+1. ZIPをローカルディスク上のフォルダへすべて展開します。
+2. 変換したいPDFを「ここにPDFをドラッグ＆ドロップ.cmd」のアイコンへ
+   ドラッグ＆ドロップします。
+3. 黒い画面は処理終了後も閉じません。内容を確認してEnterキーを押します。
+
+変換に成功すると、入力PDFと同じフォルダへ次のファイルを作ります。
+
+* 元ファイル名-pdfx1a.pdf
+
+同名ファイルがすでにある場合は、ファイル名に日時を追加して上書きを
+避けます。
+
+ログ、JSONレポート、診断用の中間PDFは入力PDFの隣には作りません。
+次のフォルダへまとめて保存します。
+
+%LOCALAPPDATA%\pdfx1a-convert\diagnostics
+
+変換に失敗した場合は、黒い画面に診断フォルダの場所を表示します。
+診断用PDFは印刷用途には使用しないでください。
+
+「_internal」フォルダには実行に必要なファイルが入っています。
+移動、名前変更、削除をしないでください。
+
+手動実行例
+----------
+_internal\pdfx1a-convert.exe engine-info ^
+  --ghostscript _internal\ghostscript\bin\gswin64c.exe
+
+_internal\pdfx1a-convert.exe convert-pdfx1a input.pdf ^
+  --output output.pdf ^
+  --ghostscript _internal\ghostscript\bin\gswin64c.exe ^
+  --report report.json
+
+ライセンス
+----------
+pdfx1a-convertおよび同梱GhostscriptはGNU Affero General Public License
+Version 3の条件で提供されます。詳細は_internal\licensesフォルダ内の
+各文書を参照してください。

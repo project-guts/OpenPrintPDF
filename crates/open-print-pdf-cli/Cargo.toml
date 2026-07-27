@@ -1,0 +1,19 @@
+[package]
+name = "open-print-pdf-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "pdfx1a-convert"
+path = "src/main.rs"
+
+[dependencies]
+anyhow.workspace = true
+clap.workspace = true
+open-print-pdf-conversion-ghostscript = { path = "../open-print-pdf-conversion-ghostscript" }
+open-print-pdf-application = { path = "../open-print-pdf-application" }
+open-print-pdf-core = { path = "../open-print-pdf-core" }
+serde.workspace = true
+serde_json.workspace = true

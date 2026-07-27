@@ -1,0 +1,139 @@
+name: Build Windows pdfx1a-convert package
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/windows-cli.yml"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "crates/**"
+      - "scripts/prepare-ghostscript-windows.ps1"
+      - "scripts/run-cli-diagnostic.*"
+      - "docs/windows-cli-diagnostic.txt"
+
+permissions:
+  contents: read
+
+jobs:
+  windows-cli:
+    name: Windows 11 x64 CLI
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable 2026-07-16
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2.9.1
+      - name: Prepare bundled Ghostscript
+        id: ghostscript
+        shell: pwsh
+        timeout-minutes: 8
+        run: ./scripts/prepare-ghostscript-windows.ps1
+      - name: Check and build CLI
+        shell: pwsh
+        run: |
+          cargo fmt --all -- --check
+          cargo test --workspace
+          cargo clippy --workspace --all-targets -- -D warnings
+          cargo build -p open-print-pdf-cli --release
+      - name: Assemble portable CLI package
+        id: package
+        shell: pwsh
+        run: |
+          $versionLine = Select-String -Path Cargo.toml -Pattern '^version = "([^"]+)"$' |
+            Select-Object -First 1
+          if (-not $versionLine) { throw "Workspace version was not found" }
+          $version = $versionLine.Matches[0].Groups[1].Value
+          $name = "pdfx1a-convert-$version-windows-x64"
+          $root = Join-Path $PWD "output/$name"
+          $internal = Join-Path $root "_internal"
+          $licenses = Join-Path $internal "licenses"
+          New-Item -ItemType Directory -Force $licenses | Out-Null
+          Copy-Item target/release/pdfx1a-convert.exe (Join-Path $internal "pdfx1a-convert.exe")
+          Copy-Item -Recurse '${{ steps.ghostscript.outputs.ghostscript_root }}' (Join-Path $internal "ghostscript")
+          Copy-Item scripts/run-cli-diagnostic.ps1 (Join-Path $internal "run-cli.ps1")
+          Copy-Item scripts/run-cli-diagnostic.cmd (Join-Path $root "ここにPDFをドラッグ＆ドロップ.cmd")
+          Copy-Item docs/windows-cli-diagnostic.txt (Join-Path $internal "README.txt")
+          Copy-Item LICENSE $licenses
+          Copy-Item THIRD_PARTY_NOTICES.md $licenses
+          Copy-Item docs/ghostscript-source.md $licenses
+          $zip = Join-Path $PWD "output/$name.zip"
+          Compress-Archive -Path "$root/*" -DestinationPath $zip -CompressionLevel Optimal
+          $hash = (Get-FileHash -Algorithm SHA256 $zip).Hash.ToLowerInvariant()
+          "$hash  $name.zip" | Set-Content -Encoding ascii "$zip.sha256"
+          "name=$name" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "zip=$zip" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+      - name: Smoke-test packaged CLI
+        shell: pwsh
+        run: |
+          $root = Join-Path $PWD 'output/${{ steps.package.outputs.name }}'
+          $internal = Join-Path $root "_internal"
+          $cli = Join-Path $internal "pdfx1a-convert.exe"
+          $gs = Join-Path $internal "ghostscript/bin/gswin64c.exe"
+          $launcher = Join-Path $root "ここにPDFをドラッグ＆ドロップ.cmd"
+          $rootItems = @(Get-ChildItem -LiteralPath $root)
+          if ($rootItems.Count -ne 2 -or -not (Test-Path -LiteralPath $launcher) -or
+              -not (Test-Path -LiteralPath $internal -PathType Container)) {
+            throw "Portable package root contains unexpected user-visible files"
+          }
+          & $cli --version
+          if ($LASTEXITCODE -ne 0) { throw "CLI version check failed" }
+          $versionText = (& $cli --version | Out-String)
+          if (-not $versionText.Contains("pdfx1a-convert")) {
+            throw "CLI still exposes the old public command name"
+          }
+          & $cli engine-info --ghostscript $gs
+          if ($LASTEXITCODE -ne 0) { throw "Packaged Ghostscript detection failed" }
+          $launcherText = Get-Content -Raw -LiteralPath $launcher
+          if (-not $launcherText.Contains("_internal\run-cli.ps1")) {
+            throw "Drag-and-drop launcher does not resolve the internal script"
+          }
+          $launcherDirectory = Join-Path $env:RUNNER_TEMP "launcher-smoke-test"
+          $diagnosticsDirectory = Join-Path $env:RUNNER_TEMP "launcher-diagnostics"
+          New-Item -ItemType Directory -Force $launcherDirectory | Out-Null
+          $launcherInput = Join-Path $launcherDirectory "launcher-input.pdf"
+          [IO.File]::WriteAllText($launcherInput, "%PDF-1.4`ninvalid test fixture")
+          & powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass `
+            -File (Join-Path $internal "run-cli.ps1") `
+            -InputPdf $launcherInput `
+            -DiagnosticsRoot $diagnosticsDirectory `
+            -NoPause
+          if ($LASTEXITCODE -eq 0) {
+            throw "Invalid smoke-test PDF unexpectedly converted"
+          }
+          $launcherOutput = Join-Path $launcherDirectory "launcher-input-pdfx1a.pdf"
+          if (Test-Path -LiteralPath $launcherOutput) {
+            throw "Failed conversion left a final PDF beside the input"
+          }
+          $unexpectedVisibleFiles = @(Get-ChildItem $launcherDirectory |
+            Where-Object {
+              $_.Name -ne "launcher-input.pdf"
+            })
+          if ($unexpectedVisibleFiles.Count -ne 0) {
+            throw "Logs, reports, or diagnostic files leaked beside the input PDF"
+          }
+          $launcherLog = Get-ChildItem $diagnosticsDirectory -Recurse -Filter "run.log" |
+            Select-Object -First 1
+          if (-not $launcherLog) {
+            throw "Internal failure log was not retained"
+          }
+          $logBytes = [IO.File]::ReadAllBytes($launcherLog.FullName)
+          if ($logBytes -contains 0) {
+            throw "Diagnostic launcher log contains UTF-16 NUL bytes"
+          }
+          $strictUtf8 = New-Object System.Text.UTF8Encoding($false, $true)
+          $logText = $strictUtf8.GetString($logBytes)
+          if (-not $logText.Contains("Conversion failed.")) {
+            throw "Failure log is not valid complete UTF-8"
+          }
+      - name: Upload portable CLI
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: ${{ steps.package.outputs.name }}
+          path: |
+            ${{ steps.package.outputs.zip }}
+            ${{ steps.package.outputs.zip }}.sha256
+          if-no-files-found: error
+          retention-days: 14
