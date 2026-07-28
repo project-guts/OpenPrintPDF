@@ -752,7 +752,7 @@ checksum = "384b8ab6d37215f3c5301a95a4accb5d64aa607f1fcb26a11b5303878451b4fe"
 
 [[package]]
 name = "open-print-pdf-application"
-version = "0.1.9"
+version = "0.1.10"
 dependencies = [
  "open-print-pdf-conversion-ghostscript",
  "open-print-pdf-core",
@@ -762,7 +762,7 @@ dependencies = [
 
 [[package]]
 name = "open-print-pdf-cli"
-version = "0.1.9"
+version = "0.1.10"
 dependencies = [
  "anyhow",
  "clap",
@@ -775,7 +775,7 @@ dependencies = [
 
 [[package]]
 name = "open-print-pdf-conversion-ghostscript"
-version = "0.1.9"
+version = "0.1.10"
 dependencies = [
  "hex",
  "lopdf",
@@ -788,7 +788,7 @@ dependencies = [
 
 [[package]]
 name = "open-print-pdf-core"
-version = "0.1.9"
+version = "0.1.10"
 dependencies = [
  "hex",
  "lopdf",

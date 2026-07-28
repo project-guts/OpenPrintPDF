@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.10 — 2026-07-28
+
+- Parallels共有フォルダ、ネットワークドライブ、UNCパス上からの起動を
+  事前に検出し、フォルダ一式をCドライブへ移動するよう案内する
+- Windows配布物のREADMEにローカルドライブ要件を明記
+
 ## 0.1.9 — 2026-07-28
 
 - Added the portable Windows `pdfx1a-convert` CLI package.

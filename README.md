@@ -11,6 +11,12 @@ The portable Windows package keeps a simple drag-and-drop interface. Extract the
 ZIP and drop a PDF onto `ここにPDFをドラッグ＆ドロップ.cmd`. The converted file
 is saved beside the input as `original-name-pdfx1a.pdf`.
 
+Extract and run the package from a local folder on the `C:` drive. Do not run it
+from a Parallels shared folder, mapped network drive, or UNC path: Ghostscript
+may be unable to load its bundled resources from those locations. The launcher
+detects these locations and displays instructions to move the entire extracted
+folder to local storage.
+
 Ghostscript is bundled. Logs, JSON reports, and diagnostic intermediate PDFs are
 stored under `%LOCALAPPDATA%\pdfx1a-convert\diagnostics` instead of beside the
 user's PDF. Supporting executables and license documents are kept in

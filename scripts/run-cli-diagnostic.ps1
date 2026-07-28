@@ -10,10 +10,58 @@ $internalRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $cli = Join-Path $internalRoot "pdfx1a-convert.exe"
 $ghostscript = Join-Path $internalRoot "ghostscript/bin/gswin64c.exe"
 
+function Get-NonLocalApplicationReason {
+    param([string]$Path)
+
+    if ($Path.StartsWith("\\") -or $Path.StartsWith("//")) {
+        return "UNC/network path"
+    }
+
+    $root = [IO.Path]::GetPathRoot($Path)
+    if ([string]::IsNullOrWhiteSpace($root)) {
+        return $null
+    }
+
+    try {
+        $driveName = $root.TrimEnd("\").TrimEnd(":")
+        $psDrive = Get-PSDrive -Name $driveName -ErrorAction Stop
+        if (-not [string]::IsNullOrWhiteSpace($psDrive.DisplayRoot) -and
+            ($psDrive.DisplayRoot.StartsWith("\\") -or $psDrive.DisplayRoot.StartsWith("//"))) {
+            return "mapped/shared drive ($($psDrive.DisplayRoot))"
+        }
+    } catch {
+        # DriveInfo below is sufficient when the PowerShell drive cannot be queried.
+    }
+
+    try {
+        $drive = [IO.DriveInfo]::new($root)
+        if ($drive.DriveType -eq [IO.DriveType]::Network) {
+            return "network/shared drive ($root)"
+        }
+    } catch {
+        # Do not reject an otherwise usable local path merely because its drive type
+        # could not be determined.
+    }
+
+    return $null
+}
+
 function Wait-BeforeExit {
     if (-not $NoPause) {
         Read-Host "Press Enter to close"
     }
+}
+
+$nonLocalReason = Get-NonLocalApplicationReason $internalRoot
+if (-not [string]::IsNullOrWhiteSpace($nonLocalReason)) {
+    Write-Host "This package is running from a network or shared drive: $internalRoot" -ForegroundColor Red
+    Write-Host "Detected: $nonLocalReason" -ForegroundColor Red
+    Write-Host ""
+    Write-Host "Bundled Ghostscript cannot reliably load its resources from Parallels shared folders or mapped network drives."
+    Write-Host "Move the entire extracted pdfx1a-convert folder to a local C: drive folder (for example C:\pdfx1a-convert) and try again."
+    Write-Host "Do not move only the CMD file; keep the CMD file and _internal folder together."
+    Wait-BeforeExit
+    exit 2
 }
 
 if (-not (Test-Path -LiteralPath $InputPdf -PathType Leaf)) {
