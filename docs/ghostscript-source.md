@@ -1,11 +1,11 @@
 # 同梱Ghostscriptのソースコード
 
-Open Print PDFのWindowsインストーラーには、Ghostscript 10.07.1のWindows
+pdfx1a-convertのWindowsポータブルZIPには、Ghostscript 10.07.1のWindows
 x64版を同梱する。
 
 ## 対応するソースコード
 
-インストーラーを取得したOpen Print PDFのGitHub Releaseに、次のファイルを
+Windows ZIPを取得したpdfx1a-convertのGitHub Releaseに、次のファイルを
 同時掲載する。
 
 ```text
@@ -17,7 +17,7 @@ SHA-256: 1cdb766de8db8f1e589c817f09c5855ea5f65dfc8540e465a69ac14c18416025
 
 https://github.com/ArtifexSoftware/ghostpdl-downloads/releases/download/gs10071/ghostscript-10.07.1.tar.xz
 
-Windowsバイナリは次の公式配布物から取り出し、Open Print PDFのリソースとして
+Windowsバイナリは次の公式配布物から取り出し、pdfx1a-convertのリソースとして
 同梱する。
 
 ```text
@@ -28,7 +28,7 @@ SHA-256: 3a4c28d0aac47aa7cccd35a5932c55110376e9dbd966898dde388b7faba444a4
 ## 再現方法
 
 `build/ghostscript-windows.json`がバージョン、公式URL、SHA-256を固定している。
-Windows上で次を実行すると、ハッシュを検証したうえでインストーラー用の
+Windows上で次を実行すると、ハッシュを検証したうえでポータブルZIP用の
 リソースを準備する。
 
 ```powershell
@@ -40,6 +40,6 @@ Windows上で次を実行すると、ハッシュを検証したうえでイン�
 
 ## ライセンス
 
-GhostscriptおよびOpen Print PDFはGNU Affero General Public License version 3
-の条件に従って配布する。ライセンス全文はインストーラーとソースリポジトリの
+Ghostscriptおよびpdfx1a-convertはGNU Affero General Public License version 3
+の条件に従って配布する。ライセンス全文はポータブルZIPとソースリポジトリの
 `LICENSE`に含める。

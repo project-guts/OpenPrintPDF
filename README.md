@@ -2,7 +2,10 @@
 
 Windows utility for PDF inspection and PDF/X-1a conversion.
 
-Status: pre-release.
+Status: beta.
+
+This is a small, independently published command-line utility. It is not a
+hosted service and does not upload PDFs.
 
 The portable Windows package keeps a simple drag-and-drop interface. Extract the
 ZIP and drop a PDF onto `ここにPDFをドラッグ＆ドロップ.cmd`. The converted file
@@ -16,9 +19,14 @@ user's PDF. Supporting executables and license documents are kept in
 ## Requirements
 
 - Windows 11 x64
-- Rust stable
-- Node.js 24 or later
-- Visual Studio 2022 Build Tools
+
+The Windows ZIP already includes the executable and Ghostscript. Rust, Node.js,
+and Visual Studio are needed only when building from source.
+
+## Download
+
+Download the ZIP and matching `.sha256` file from
+[GitHub Releases](https://github.com/project-guts/pdfx1a-convert/releases).
 
 ## Build
 
