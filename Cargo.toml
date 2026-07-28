@@ -1,6 +1,5 @@
 [workspace]
 members = [
-    "apps/desktop/src-tauri",
     "crates/open-print-pdf-application",
     "crates/open-print-pdf-core",
     "crates/open-print-pdf-conversion-ghostscript",
