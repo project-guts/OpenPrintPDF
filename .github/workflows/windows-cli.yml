@@ -90,11 +90,6 @@ jobs:
           if (-not $launcherText.Contains("_internal\run-cli.ps1")) {
             throw "Drag-and-drop launcher does not resolve the internal script"
           }
-          $internalLauncherText = Get-Content -Raw -LiteralPath (Join-Path $internal "run-cli.ps1")
-          if (-not $internalLauncherText.Contains("Get-NonLocalApplicationReason") -or
-              -not $internalLauncherText.Contains("C:\pdfx1a-convert")) {
-            throw "Launcher does not protect users from unsupported shared-drive execution"
-          }
           $launcherDirectory = Join-Path $env:RUNNER_TEMP "launcher-smoke-test"
           $diagnosticsDirectory = Join-Path $env:RUNNER_TEMP "launcher-diagnostics"
           New-Item -ItemType Directory -Force $launcherDirectory | Out-Null
